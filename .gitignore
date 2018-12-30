@@ -16,4 +16,5 @@
 /vendor
 
 # Runtime folders
+/.env
 /data
