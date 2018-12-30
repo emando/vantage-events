@@ -30,11 +30,10 @@ const (
 	competitionActivations = "competition.activations"
 )
 
-// Competitions returns the competition activations.
-func (s *Source) Competitions(ctx context.Context, history time.Duration) (<-chan *events.Competition, error) {
+// CompetitionActivations returns the competition activations.
+func (s *Source) CompetitionActivations(ctx context.Context, history time.Duration) (<-chan *events.Competition, error) {
 	ch := make(chan *events.Competition)
 	cb := func(msg *stan.Msg) {
-		s.logger.Debug("received message", zap.String("subject", competitionActivations))
 		event := new(eventmodels.CompetitionActivated)
 		if err := eventmodels.Unmarshal(msg.Data, eventmodels.CompetitionActivatedType, event); err != nil {
 			s.logger.Warn("failed to unmarshal data", zap.Error(err))

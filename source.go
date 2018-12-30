@@ -9,5 +9,6 @@ import (
 
 // Source is a source for competition events.
 type Source interface {
-	Competitions(ctx context.Context, history time.Duration) (<-chan *Competition, error)
+	CompetitionActivations(ctx context.Context, history time.Duration) (<-chan *Competition, error)
+	DistanceActivations(ctx context.Context, competitionID string) (<-chan *Distance, error)
 }

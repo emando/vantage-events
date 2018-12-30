@@ -44,7 +44,7 @@ var startCmd = &cobra.Command{
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		competitionCh, err := source.Competitions(ctx, viper.GetDuration("history"))
+		competitionCh, err := source.CompetitionActivations(ctx, viper.GetDuration("history"))
 		if err != nil {
 			logger.Fatal("failed to get competitions", zap.Error(err))
 		}
