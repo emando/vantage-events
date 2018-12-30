@@ -4,6 +4,7 @@ package nats
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	events "github.com/johanstokking/vantage-events"
@@ -28,6 +29,7 @@ func NewSource(logger *zap.Logger, conn *Conn) *Source {
 
 const (
 	competitionActivations = "competition.activations"
+	distanceActivations    = "competition.%v.distances.activations"
 )
 
 // CompetitionActivations returns the competition activations.
@@ -43,6 +45,31 @@ func (s *Source) CompetitionActivations(ctx context.Context, history time.Durati
 		ch <- &event.Value
 	}
 	sub, err := s.conn.stan.Subscribe(competitionActivations, cb, stan.StartAtTimeDelta(history))
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		<-ctx.Done()
+		sub.Close()
+		close(ch)
+	}()
+	return ch, nil
+}
+
+// DistanceActivations returns the distance activations. The last activated distance is always returned.
+func (s *Source) DistanceActivations(ctx context.Context, competitionID string) (<-chan *events.Distance, error) {
+	ch := make(chan *events.Distance)
+	cb := func(msg *stan.Msg) {
+		event := new(eventmodels.DistanceActivated)
+		if err := eventmodels.Unmarshal(msg.Data, eventmodels.DistanceActivatedType, event); err != nil {
+			s.logger.Warn("failed to unmarshal data", zap.Error(err))
+			return
+		}
+		s.logger.Debug("received distance activation", zap.String("id", event.DistanceID))
+		ch <- &event.Value
+	}
+	subject := fmt.Sprintf(distanceActivations, competitionID)
+	sub, err := s.conn.stan.Subscribe(subject, cb, stan.StartWithLastReceived())
 	if err != nil {
 		return nil, err
 	}
