@@ -32,6 +32,13 @@ var startCmd = &cobra.Command{
 				ClusterID: viper.GetString("nats-cluster-id"),
 				ClientID:  viper.GetString("nats-client-id"),
 			}
+			logger.With(
+				zap.String("url", opts.URL),
+				zap.String("username", opts.Username),
+				zap.Bool("tls", opts.UseTLS),
+				zap.String("cluster_id", opts.ClusterID),
+				zap.String("client_id", opts.ClientID),
+			).Info("connecting NATS...")
 			conn, err := nats.Connect(opts)
 			if err != nil {
 				logger.Fatal("failed to connect to NATS", zap.Error(err))
