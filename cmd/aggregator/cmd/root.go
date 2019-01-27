@@ -55,7 +55,7 @@ func init() {
 	rootCmd.PersistentFlags().String("driver", "nats", "driver (nats)")
 
 	rootCmd.PersistentFlags().String("nats-url", "nats://events.emandovantage.com:4222", "NATS Streaming Server URL")
-	rootCmd.PersistentFlags().String("nats-user", "", "NATS username")
+	rootCmd.PersistentFlags().String("nats-username", "", "NATS username")
 	rootCmd.PersistentFlags().String("nats-password", "", "NATS password")
 	rootCmd.PersistentFlags().Bool("nats-tls", true, "use TLS for NATS")
 	rootCmd.PersistentFlags().String("nats-cluster-id", "vantage", "NATS cluster ID")
