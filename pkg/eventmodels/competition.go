@@ -2,7 +2,7 @@
 
 package eventmodels
 
-import events "github.com/johanstokking/vantage-events"
+import events "github.com/emando/vantage-events"
 
 type Competition struct {
 	Base

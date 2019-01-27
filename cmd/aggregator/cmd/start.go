@@ -9,8 +9,8 @@ import (
 	"syscall"
 	"time"
 
-	events "github.com/johanstokking/vantage-events"
-	"github.com/johanstokking/vantage-events/pkg/nats"
+	events "github.com/emando/vantage-events"
+	"github.com/emando/vantage-events/pkg/nats"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"

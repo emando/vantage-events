@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	events "github.com/johanstokking/vantage-events"
-	"github.com/johanstokking/vantage-events/pkg/eventmodels"
+	events "github.com/emando/vantage-events"
+	"github.com/emando/vantage-events/pkg/eventmodels"
 	stan "github.com/nats-io/go-nats-streaming"
 	"go.uber.org/zap"
 )

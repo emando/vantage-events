@@ -3,7 +3,7 @@
 package eventmodels
 
 import (
-	events "github.com/johanstokking/vantage-events"
+	events "github.com/emando/vantage-events"
 )
 
 type Distance struct {
