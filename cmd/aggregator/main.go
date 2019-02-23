@@ -1,4 +1,4 @@
-// Copyright © 2018 Emando B.V.
+// Copyright © 2019 Emando B.V.
 
 package main
 
