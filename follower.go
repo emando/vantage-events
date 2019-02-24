@@ -21,27 +21,26 @@ func (f Follower) Run(ctx context.Context, history time.Duration) (<-chan *Compe
 	}
 	ch := make(chan *CompetitionEvents)
 	go func() {
-		events := make(map[string]*CompetitionEvents)
+		competitions := make(map[string]context.CancelFunc)
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case competition := <-activations:
-				if ev, ok := events[competition.ID]; ok {
-					ev.Competition = competition
-					ev.Update <- competition
-					continue
+				if cancel, ok := competitions[competition.ID]; ok {
+					cancel()
 				}
+				ctx, cancel := context.WithCancel(ctx)
+				competitions[competition.ID] = cancel
 				ev := &CompetitionEvents{
 					Follower:    f,
 					Competition: competition,
 					Update:      make(chan *Competition),
 					Distance:    make(chan *DistanceEvents),
 				}
-				events[competition.ID] = ev
 				ch <- ev
 				go func() {
-					if err := ev.follow(ctx); err != nil {
+					if err := ev.follow(ctx); err != nil && err != context.Canceled {
 						f.Logger.Error("failed to follow competition", zap.Error(err))
 					}
 				}()
