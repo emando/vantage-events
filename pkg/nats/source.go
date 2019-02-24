@@ -30,6 +30,7 @@ func NewSource(logger *zap.Logger, conn *Conn) *Source {
 const (
 	competitionActivations = "competition.activations"
 	distanceActivations    = "competition.%v.distances.activations"
+	heatActivations        = "competition.%v.distances.%v.heats.activations"
 )
 
 // CompetitionActivations returns the competition activations.
@@ -50,8 +51,8 @@ func (s *Source) CompetitionActivations(ctx context.Context, history time.Durati
 	}
 	go func() {
 		<-ctx.Done()
+		s.logger.Debug("unsubscribe from competition activations")
 		sub.Close()
-		close(ch)
 	}()
 	return ch, nil
 }
@@ -65,7 +66,10 @@ func (s *Source) DistanceActivations(ctx context.Context, competitionID string) 
 			s.logger.Warn("failed to unmarshal data", zap.Error(err))
 			return
 		}
-		s.logger.Debug("received distance activation", zap.String("id", event.DistanceID))
+		s.logger.Debug("received distance activation",
+			zap.String("competition_id", competitionID),
+			zap.String("distance_id", event.DistanceID),
+		)
 		ch <- &event.Value
 	}
 	subject := fmt.Sprintf(distanceActivations, competitionID)
@@ -75,8 +79,41 @@ func (s *Source) DistanceActivations(ctx context.Context, competitionID string) 
 	}
 	go func() {
 		<-ctx.Done()
+		s.logger.Debug("unsubscribe from distance activations", zap.String("competition_id", competitionID))
 		sub.Close()
-		close(ch)
+	}()
+	return ch, nil
+}
+
+// HeatActivations returns the heat activations. The last activated heat is always returned.
+func (s *Source) HeatActivations(ctx context.Context, competitionID, distanceID string) (<-chan *events.Heat, error) {
+	ch := make(chan *events.Heat)
+	cb := func(msg *stan.Msg) {
+		event := new(eventmodels.HeatActivated)
+		if err := eventmodels.Unmarshal(msg.Data, eventmodels.HeatActivatedType, event); err != nil {
+			s.logger.Warn("failed to unmarshal data", zap.Error(err))
+			return
+		}
+		s.logger.Debug("received heat activation",
+			zap.String("competition_id", competitionID),
+			zap.String("distance_id", distanceID),
+			zap.Int("round", event.Key.Round),
+			zap.Int("heat", event.Key.Number),
+		)
+		ch <- &event.Heat.Heat
+	}
+	subject := fmt.Sprintf(heatActivations, competitionID, distanceID)
+	sub, err := s.conn.stan.Subscribe(subject, cb, stan.StartWithLastReceived())
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		<-ctx.Done()
+		s.logger.Debug("unsubscribe from heat activations",
+			zap.String("competition_id", competitionID),
+			zap.String("distance_id", distanceID),
+		)
+		sub.Close()
 	}()
 	return ch, nil
 }

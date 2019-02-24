@@ -68,20 +68,52 @@ func (c *CompetitionEvents) follow(ctx context.Context) error {
 			return ctx.Err()
 		case distance := <-activations:
 			ev := &DistanceEvents{
-				Follower: c.Follower,
-				Distance: distance,
+				Follower:    c.Follower,
+				Competition: c.Competition,
+				Distance:    distance,
+				Heats:       make(chan *HeatEvents),
 			}
 			c.Distance <- ev
+			go func() {
+				if err := ev.follow(ctx); err != nil && err != context.Canceled {
+					c.Logger.Error("failed to follow distance", zap.Error(err))
+				}
+			}()
 		}
 	}
 }
 
 type DistanceEvents struct {
 	Follower
-	Distance *Distance
-	Heats    chan *HeatEvents
+	Competition *Competition
+	Distance    *Distance
+	Heats       chan *HeatEvents
+}
+
+func (d *DistanceEvents) follow(ctx context.Context) error {
+	activations, err := d.Source.HeatActivations(ctx, d.Competition.ID, d.Distance.ID)
+	if err != nil {
+		return err
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case heat := <-activations:
+			ev := &HeatEvents{
+				Follower:    d.Follower,
+				Competition: d.Competition,
+				Distance:    d.Distance,
+				Heat:        heat,
+			}
+			d.Heats <- ev
+		}
+	}
 }
 
 type HeatEvents struct {
 	Follower
+	Competition *Competition
+	Distance    *Distance
+	Heat        *Heat
 }
