@@ -30,7 +30,7 @@ func NewSource(logger *zap.Logger, conn *Conn) *Source {
 const (
 	competitionActivations = "competition.activations"
 	distanceActivations    = "competition.%v.distances.activations"
-	heatActivations        = "competition.%v.distances.%v.heats.activations"
+	heatActivations        = "competition.%v.distances.%v.heats.activations.*"
 )
 
 // CompetitionActivations returns the competition activations.
