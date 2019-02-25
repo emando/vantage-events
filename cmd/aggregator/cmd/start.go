@@ -21,7 +21,9 @@ var startCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start the Event Aggregator.",
 	Run: func(cmd *cobra.Command, args []string) {
-		var source events.Source
+		follower := events.Follower{
+			Logger: logger,
+		}
 		switch viper.GetString("driver") {
 		case "nats":
 			opts := nats.Options{
@@ -44,14 +46,15 @@ var startCmd = &cobra.Command{
 				logger.Fatal("failed to connect to NATS", zap.Error(err))
 			}
 			defer conn.Close()
-			source = nats.NewSource(logger, conn)
+			follower.Source = nats.NewSource(logger, conn)
 		default:
 			logger.Fatal("invalid driver")
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		competitionCh, err := source.CompetitionActivations(ctx, viper.GetDuration("history"))
+
+		competitionCh, err := follower.Run(ctx, viper.GetDuration("history"))
 		if err != nil {
 			logger.Fatal("failed to get competitions", zap.Error(err))
 		}
@@ -61,7 +64,34 @@ var startCmd = &cobra.Command{
 				case <-ctx.Done():
 					return
 				case c := <-competitionCh:
-					logger.Info("competition activated", zap.String("name", c.Name))
+					logger := logger.With(zap.String("competition_name", c.Competition.Name))
+					logger.Info("competition activated")
+					go func() {
+						for {
+							select {
+							case <-ctx.Done():
+								return
+							case <-c.Update:
+							case d := <-c.Distance:
+								logger := logger.With(zap.String("distance_name", d.Distance.Name))
+								logger.Info("distance activated")
+								go func() {
+									for {
+										select {
+										case <-ctx.Done():
+											return
+										case h := <-d.Heats:
+											logger := logger.With(
+												zap.Int("heat_round", h.Heat.Key.Round),
+												zap.Int("heat_number", h.Heat.Key.Number),
+											)
+											logger.Info("heat activated")
+										}
+									}
+								}()
+							}
+						}
+					}()
 				}
 			}
 		}()
