@@ -13,5 +13,5 @@ import (
 type Source interface {
 	CompetitionActivations(ctx context.Context, history time.Duration) (<-chan *entities.Competition, error)
 	DistanceActivations(ctx context.Context, competitionID string) (<-chan *entities.Distance, error)
-	HeatActivations(ctx context.Context, competitionID, distanceID string) (<-chan *entities.Heat, error)
+	HeatActivations(ctx context.Context, competitionID, distanceID string, groups ...int) (<-chan *entities.Heat, error)
 }

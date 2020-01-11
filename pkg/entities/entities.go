@@ -10,8 +10,10 @@ type Competition struct {
 
 // Distance is a Vantage competition distance.
 type Distance struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	Discipline string `json:"discipline"`
+	StartMode  int    `json:"startMode"`
 }
 
 // Heat is a Vantage competition distance heat.

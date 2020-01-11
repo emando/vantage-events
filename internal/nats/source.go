@@ -30,7 +30,7 @@ func NewSource(logger *zap.Logger, conn *Conn) *Source {
 const (
 	competitionActivations = "competition.activations"
 	distanceActivations    = "competition.%v.distances.activations"
-	heatActivations        = "competition.%v.distances.%v.heats.activations.*"
+	heatActivations        = "competition.%v.distances.%v.heats.activations.%d"
 )
 
 // CompetitionActivations returns the competition activations.
@@ -90,7 +90,7 @@ func (s *Source) DistanceActivations(ctx context.Context, competitionID string) 
 }
 
 // HeatActivations returns the heat activations. The last activated heat is always returned.
-func (s *Source) HeatActivations(ctx context.Context, competitionID, distanceID string) (<-chan *entities.Heat, error) {
+func (s *Source) HeatActivations(ctx context.Context, competitionID, distanceID string, groups ...int) (<-chan *entities.Heat, error) {
 	logger := s.logger.With(
 		zap.String("competition_id", competitionID),
 		zap.String("distance_id", distanceID),
@@ -104,19 +104,21 @@ func (s *Source) HeatActivations(ctx context.Context, competitionID, distanceID 
 		}
 		logger.Debug("received heat activation",
 			zap.Int("heat_round", event.Key.Round),
-			zap.Int("heat_heat", event.Key.Number),
+			zap.Int("heat_number", event.Key.Number),
 		)
 		ch <- &event.Heat.Heat
 	}
-	subject := fmt.Sprintf(heatActivations, competitionID, distanceID)
-	sub, err := s.conn.stan.Subscribe(subject, cb, stan.StartWithLastReceived())
-	if err != nil {
-		return nil, err
+	for _, group := range groups {
+		subject := fmt.Sprintf(heatActivations, competitionID, distanceID, group)
+		sub, err := s.conn.stan.Subscribe(subject, cb, stan.StartWithLastReceived())
+		if err != nil {
+			return nil, err
+		}
+		go func() {
+			<-ctx.Done()
+			logger.Debug("unsubscribe from heat activations")
+			sub.Close()
+		}()
 	}
-	go func() {
-		<-ctx.Done()
-		logger.Debug("unsubscribe from heat activations")
-		sub.Close()
-	}()
 	return ch, nil
 }

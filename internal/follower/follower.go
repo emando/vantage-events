@@ -4,6 +4,7 @@ package follower
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/emando/vantage-events/pkg/entities"
@@ -109,7 +110,15 @@ type DistanceEvents struct {
 }
 
 func (d *DistanceEvents) follow(ctx context.Context) error {
-	activations, err := d.source.HeatActivations(ctx, d.Competition.ID, d.Distance.ID)
+	groups := make([]int, 1, 2)
+	switch {
+	case strings.HasPrefix(d.Distance.Discipline, "SpeedSkating.LongTrack.PairsDistance."):
+		// Subscribe to both pairs if the start mode is not SingleHeat.
+		if d.Distance.StartMode != 0 {
+			groups = append(groups, 1)
+		}
+	}
+	activations, err := d.source.HeatActivations(ctx, d.Competition.ID, d.Distance.ID, groups...)
 	if err != nil {
 		return err
 	}
