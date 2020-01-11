@@ -56,11 +56,9 @@ func (f Follower) Run(ctx context.Context, history time.Duration, ids ...string)
 				defer cancel()
 				competitions[activation.CompetitionID] = cancel
 				ev := &CompetitionEvents{
-					source: f.Source,
-					logger: f.Logger.With(
-						zap.String("competition_id", activation.CompetitionID),
-						zap.String("competition_name", activation.Value.Name),
-					),
+					source:         f.Source,
+					logger:         logger,
+					activation:     activation,
 					Competition:    &activation.Value,
 					DistanceEvents: make(chan *DistanceEvents),
 					RawActivation:  activation.Raw,
@@ -69,7 +67,7 @@ func (f Follower) Run(ctx context.Context, history time.Duration, ids ...string)
 				ch <- ev
 				go func() {
 					if err := ev.follow(ctx); err != nil && err != context.Canceled {
-						f.Logger.Error("failed to follow competition", zap.Error(err))
+						logger.Error("failed to follow competition", zap.Error(err))
 					}
 				}()
 			}
@@ -80,8 +78,9 @@ func (f Follower) Run(ctx context.Context, history time.Duration, ids ...string)
 
 // CompetitionEvents provides Vantage events from a competition.
 type CompetitionEvents struct {
-	source events.Source
-	logger *zap.Logger
+	source     events.Source
+	logger     *zap.Logger
+	activation *events.CompetitionActivated
 
 	Competition    *entities.Competition
 	DistanceEvents chan *DistanceEvents
@@ -91,6 +90,10 @@ type CompetitionEvents struct {
 }
 
 func (c *CompetitionEvents) follow(ctx context.Context) error {
+	rawEvents, err := c.source.CompetitionEvents(ctx, c.activation)
+	if err != nil {
+		return err
+	}
 	activations, err := c.source.DistanceActivations(ctx, c.Competition.ID)
 	if err != nil {
 		return err
@@ -99,6 +102,9 @@ func (c *CompetitionEvents) follow(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
+		case rawEvent := <-rawEvents:
+			c.logger.With(zap.String("type", rawEvent.Type)).Debug("received competition event")
+			c.RawEvents <- rawEvent.Bytes
 		case activation := <-activations:
 			ev := &DistanceEvents{
 				source: c.source,
@@ -106,6 +112,7 @@ func (c *CompetitionEvents) follow(ctx context.Context) error {
 					zap.String("distance_id", activation.DistanceID),
 					zap.String("distance_name", activation.Value.Name),
 				),
+				activation:    activation,
 				Competition:   c.Competition,
 				Distance:      &activation.Value,
 				HeatEvents:    make(chan *HeatEvents),
@@ -124,8 +131,9 @@ func (c *CompetitionEvents) follow(ctx context.Context) error {
 
 // DistanceEvents provides Vantage competition distance events.
 type DistanceEvents struct {
-	source events.Source
-	logger *zap.Logger
+	source     events.Source
+	logger     *zap.Logger
+	activation *events.DistanceActivated
 
 	Competition *entities.Competition
 	Distance    *entities.Distance
@@ -136,6 +144,12 @@ type DistanceEvents struct {
 }
 
 func (d *DistanceEvents) follow(ctx context.Context) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	rawEvents, err := d.source.DistanceEvents(ctx, d.activation)
+	if err != nil {
+		return err
+	}
 	groups := make([]int, 1, 2)
 	switch {
 	case strings.HasPrefix(d.Distance.Discipline, "SpeedSkating.LongTrack.PairsDistance."):
@@ -152,6 +166,12 @@ func (d *DistanceEvents) follow(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
+		case rawEvent := <-rawEvents:
+			d.logger.With(zap.String("type", rawEvent.Type)).Debug("received distance event")
+			d.RawEvents <- rawEvent.Bytes
+			if rawEvent.TypeName() == events.DistanceDeactivatedType {
+				cancel()
+			}
 		case activation := <-activations:
 			ev := &HeatEvents{
 				source: d.source,
@@ -159,6 +179,7 @@ func (d *DistanceEvents) follow(ctx context.Context) error {
 					zap.Int("heat_round", activation.Key.Round),
 					zap.Int("heat_number", activation.Key.Number),
 				),
+				activation:    activation,
 				Competition:   d.Competition,
 				Distance:      d.Distance,
 				Heat:          &activation.Heat.Heat,
@@ -166,14 +187,20 @@ func (d *DistanceEvents) follow(ctx context.Context) error {
 				RawEvents:     make(chan []byte),
 			}
 			d.HeatEvents <- ev
+			go func() {
+				if ev.follow(ctx); err != nil && err != context.Canceled {
+					d.logger.Error("failed to follow heat", zap.Error(err))
+				}
+			}()
 		}
 	}
 }
 
 // HeatEvents provides Vantage competition distance heat events.
 type HeatEvents struct {
-	source events.Source
-	logger *zap.Logger
+	source     events.Source
+	logger     *zap.Logger
+	activation *events.HeatActivated
 
 	Competition *entities.Competition
 	Distance    *entities.Distance
@@ -181,4 +208,25 @@ type HeatEvents struct {
 
 	RawActivation []byte
 	RawEvents     chan []byte
+}
+
+func (h *HeatEvents) follow(ctx context.Context) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	rawEvents, err := h.source.HeatEvents(ctx, h.activation)
+	if err != nil {
+		return err
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case rawEvent := <-rawEvents:
+			h.logger.With(zap.String("type", rawEvent.Type)).Debug("received heat event")
+			h.RawEvents <- rawEvent.Bytes
+			if rawEvent.TypeName() == events.HeatDeactivatedType {
+				cancel()
+			}
+		}
+	}
 }
