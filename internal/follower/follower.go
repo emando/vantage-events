@@ -66,6 +66,8 @@ func (f Follower) Run(ctx context.Context, history time.Duration, ids ...string)
 				}
 				ch <- ev
 				go func() {
+					defer close(ev.DistanceEvents)
+					defer close(ev.RawEvents)
 					if err := ev.follow(ctx); err != nil && err != context.Canceled {
 						logger.Error("failed to follow competition", zap.Error(err))
 					}
@@ -121,6 +123,8 @@ func (c *CompetitionEvents) follow(ctx context.Context) error {
 			}
 			c.DistanceEvents <- ev
 			go func() {
+				defer close(ev.HeatEvents)
+				defer close(ev.RawEvents)
 				if err := ev.follow(ctx); err != nil && err != context.Canceled {
 					c.logger.Error("failed to follow distance", zap.Error(err))
 				}
@@ -188,6 +192,7 @@ func (d *DistanceEvents) follow(ctx context.Context) error {
 			}
 			d.HeatEvents <- ev
 			go func() {
+				defer close(ev.RawEvents)
 				if ev.follow(ctx); err != nil && err != context.Canceled {
 					d.logger.Error("failed to follow heat", zap.Error(err))
 				}
