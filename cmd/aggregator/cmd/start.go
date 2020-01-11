@@ -65,37 +65,37 @@ var startCmd = &cobra.Command{
 					return
 				case c := <-competitionCh:
 					logger := logger.With(zap.String("competition_name", c.Competition.Name))
-					logger.With(zap.String("buffer", string(c.RawActivation))).Info("competition activated")
+					logger.Info("competition activated")
 					go func() {
 						for {
 							select {
 							case <-ctx.Done():
 								return
-							case raw := <-c.RawEvents:
-								logger.With(zap.String("buffer", string(raw))).Debug("received competition event")
+							case <-c.RawEvents:
+								logger.Debug("received competition event")
 							case d := <-c.DistanceEvents:
 								logger := logger.With(zap.String("distance_name", d.Distance.Name))
-								logger.With(zap.String("buffer", string(d.RawActivation))).Info("distance activated")
+								logger.Info("distance activated")
 								go func() {
 									for {
 										select {
 										case <-ctx.Done():
 											return
-										case raw := <-d.RawEvents:
-											logger.With(zap.String("buffer", string(raw))).Debug("received distance event")
+										case <-d.RawEvents:
+											logger.Debug("received distance event")
 										case h := <-d.HeatEvents:
 											logger := logger.With(
 												zap.Int("heat_round", h.Heat.Key.Round),
 												zap.Int("heat_number", h.Heat.Key.Number),
 											)
-											logger.With(zap.String("buffer", string(h.RawActivation))).Info("heat activated")
+											logger.Info("heat activated")
 											go func() {
 												for {
 													select {
 													case <-ctx.Done():
 														return
-													case raw := <-h.RawEvents:
-														logger.With(zap.String("buffer", string(raw))).Debug("received heat event")
+													case <-h.RawEvents:
+														logger.Debug("received heat event")
 													}
 												}
 											}()
