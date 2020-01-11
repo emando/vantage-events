@@ -11,3 +11,9 @@ type Base struct {
 func (b Base) TypeName() string {
 	return b.Type
 }
+
+// Raw is a raw event.
+type Raw struct {
+	Base
+	Bytes []byte `json:"-"`
+}

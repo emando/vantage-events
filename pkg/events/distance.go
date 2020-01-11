@@ -15,11 +15,14 @@ type Distance struct {
 const (
 	// DistanceActivatedType is the event name of a Vantage competition distance activated event.
 	DistanceActivatedType = "DistanceActivatedEvent"
+	// DistanceDeactivatedType is the event name of a Vantage competition distance deactivated event.
+	DistanceDeactivatedType = "DistanceActivatedEvent"
 )
 
 // DistanceActivated is the event data of a Vantage competition distance activation.
 type DistanceActivated struct {
 	Distance
-	Value entities.Distance `json:"distance"`
-	Raw   []byte            `json:"-"`
+	Value    entities.Distance `json:"distance"`
+	Sequence uint64            `json:"-"`
+	Raw      []byte            `json:"-"`
 }

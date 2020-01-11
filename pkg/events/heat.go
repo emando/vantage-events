@@ -15,10 +15,13 @@ type Heat struct {
 const (
 	// HeatActivatedType is the event name of a Vantage competition distance heat activation.
 	HeatActivatedType = "HeatActivatedEvent"
+	// HeatDeactivatedType is the event name of a Vantage competition distance heat deactivation.
+	HeatDeactivatedType = "HeatDeactivatedEvent"
 )
 
 // HeatActivated is the event data of a Vantage competition activation.
 type HeatActivated struct {
 	Heat
-	Raw []byte `json:"-"`
+	Sequence uint64 `json:"-"`
+	Raw      []byte `json:"-"`
 }

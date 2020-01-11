@@ -18,6 +18,7 @@ const (
 // CompetitionActivated is the event data of a Vantage competition activation.
 type CompetitionActivated struct {
 	Competition
-	Value entities.Competition `json:"competition"`
-	Raw   []byte               `json:"-"`
+	Value    entities.Competition `json:"competition"`
+	Sequence uint64               `json:"-"`
+	Raw      []byte               `json:"-"`
 }
