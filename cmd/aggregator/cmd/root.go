@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -69,6 +70,7 @@ func initConfig() {
 	viper.SetConfigName(".aggregator")
 	viper.AddConfigPath("$HOME")
 	viper.SetEnvPrefix("vantage")
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
 	viper.AutomaticEnv()
 
 	if cfgFile != "" {
