@@ -72,7 +72,10 @@ var startCmd = &cobra.Command{
 							case <-ctx.Done():
 								return
 							case <-c.Update:
-							case d := <-c.Distance:
+							case d, ok := <-c.Distance:
+								if !ok {
+									return
+								}
 								logger := logger.With(zap.String("distance_name", d.Distance.Name))
 								logger.Info("distance activated")
 								go func() {
@@ -80,7 +83,10 @@ var startCmd = &cobra.Command{
 										select {
 										case <-ctx.Done():
 											return
-										case h := <-d.Heats:
+										case h, ok := <-d.Heats:
+											if !ok {
+												return
+											}
 											logger := logger.With(
 												zap.Int("heat_round", h.Heat.Key.Round),
 												zap.Int("heat_number", h.Heat.Key.Number),

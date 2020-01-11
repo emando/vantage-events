@@ -30,12 +30,14 @@ func (f Follower) Run(ctx context.Context, history time.Duration) (<-chan *Compe
 		for {
 			select {
 			case <-ctx.Done():
+				close(ch)
 				return
 			case competition := <-activations:
 				if cancel, ok := competitions[competition.ID]; ok {
 					cancel()
 				}
 				ctx, cancel := context.WithCancel(ctx)
+				defer cancel()
 				competitions[competition.ID] = cancel
 				ev := &CompetitionEvents{
 					source: f.Source,
@@ -77,6 +79,7 @@ func (c *CompetitionEvents) follow(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
+			close(c.Distance)
 			return ctx.Err()
 		case distance := <-activations:
 			ev := &DistanceEvents{
@@ -125,6 +128,7 @@ func (d *DistanceEvents) follow(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
+			close(d.Heats)
 			return ctx.Err()
 		case heat := <-activations:
 			ev := &HeatEvents{
