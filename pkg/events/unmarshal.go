@@ -1,6 +1,6 @@
 // Copyright © 2019 Emando B.V.
 
-package eventmodels
+package events
 
 import (
 	"encoding/json"

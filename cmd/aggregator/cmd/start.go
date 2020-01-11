@@ -9,8 +9,8 @@ import (
 	"syscall"
 	"time"
 
-	events "github.com/emando/vantage-events"
-	"github.com/emando/vantage-events/pkg/nats"
+	"github.com/emando/vantage-events/internal/follower"
+	"github.com/emando/vantage-events/internal/nats"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -21,7 +21,7 @@ var startCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start the Event Aggregator.",
 	Run: func(cmd *cobra.Command, args []string) {
-		follower := events.Follower{
+		follower := &follower.Follower{
 			Logger: logger,
 		}
 		switch viper.GetString("driver") {

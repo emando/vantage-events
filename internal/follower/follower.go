@@ -1,19 +1,23 @@
 // Copyright © 2019 Emando B.V.
 
-package events
+package follower
 
 import (
 	"context"
 	"time"
 
+	"github.com/emando/vantage-events/pkg/entities"
+	"github.com/emando/vantage-events/pkg/events"
 	"go.uber.org/zap"
 )
 
+// Follower follows Vantage events.
 type Follower struct {
 	Logger *zap.Logger
-	Source Source
+	Source events.Source
 }
 
+// Run starts the follower.
 func (f Follower) Run(ctx context.Context, history time.Duration) (<-chan *CompetitionEvents, error) {
 	activations, err := f.Source.CompetitionActivations(ctx, history)
 	if err != nil {
@@ -33,9 +37,10 @@ func (f Follower) Run(ctx context.Context, history time.Duration) (<-chan *Compe
 				ctx, cancel := context.WithCancel(ctx)
 				competitions[competition.ID] = cancel
 				ev := &CompetitionEvents{
-					Follower:    f,
+					source:      f.Source,
+					logger:      f.Logger,
 					Competition: competition,
-					Update:      make(chan *Competition),
+					Update:      make(chan *entities.Competition),
 					Distance:    make(chan *DistanceEvents),
 				}
 				ch <- ev
@@ -50,15 +55,18 @@ func (f Follower) Run(ctx context.Context, history time.Duration) (<-chan *Compe
 	return ch, nil
 }
 
+// CompetitionEvents provides Vantage events from a competition.
 type CompetitionEvents struct {
-	Follower
-	Competition *Competition
-	Update      chan *Competition
+	source events.Source
+	logger *zap.Logger
+
+	Competition *entities.Competition
+	Update      chan *entities.Competition
 	Distance    chan *DistanceEvents
 }
 
 func (c *CompetitionEvents) follow(ctx context.Context) error {
-	activations, err := c.Source.DistanceActivations(ctx, c.Competition.ID)
+	activations, err := c.source.DistanceActivations(ctx, c.Competition.ID)
 	if err != nil {
 		return err
 	}
@@ -68,7 +76,8 @@ func (c *CompetitionEvents) follow(ctx context.Context) error {
 			return ctx.Err()
 		case distance := <-activations:
 			ev := &DistanceEvents{
-				Follower:    c.Follower,
+				source:      c.source,
+				logger:      c.logger,
 				Competition: c.Competition,
 				Distance:    distance,
 				Heats:       make(chan *HeatEvents),
@@ -76,22 +85,25 @@ func (c *CompetitionEvents) follow(ctx context.Context) error {
 			c.Distance <- ev
 			go func() {
 				if err := ev.follow(ctx); err != nil && err != context.Canceled {
-					c.Logger.Error("failed to follow distance", zap.Error(err))
+					c.logger.Error("failed to follow distance", zap.Error(err))
 				}
 			}()
 		}
 	}
 }
 
+// DistanceEvents provides Vantage competition distance events.
 type DistanceEvents struct {
-	Follower
-	Competition *Competition
-	Distance    *Distance
+	source events.Source
+	logger *zap.Logger
+
+	Competition *entities.Competition
+	Distance    *entities.Distance
 	Heats       chan *HeatEvents
 }
 
 func (d *DistanceEvents) follow(ctx context.Context) error {
-	activations, err := d.Source.HeatActivations(ctx, d.Competition.ID, d.Distance.ID)
+	activations, err := d.source.HeatActivations(ctx, d.Competition.ID, d.Distance.ID)
 	if err != nil {
 		return err
 	}
@@ -101,7 +113,8 @@ func (d *DistanceEvents) follow(ctx context.Context) error {
 			return ctx.Err()
 		case heat := <-activations:
 			ev := &HeatEvents{
-				Follower:    d.Follower,
+				source:      d.source,
+				logger:      d.logger,
 				Competition: d.Competition,
 				Distance:    d.Distance,
 				Heat:        heat,
@@ -111,9 +124,12 @@ func (d *DistanceEvents) follow(ctx context.Context) error {
 	}
 }
 
+// HeatEvents provides Vantage competition distance heat events.
 type HeatEvents struct {
-	Follower
-	Competition *Competition
-	Distance    *Distance
-	Heat        *Heat
+	source events.Source
+	logger *zap.Logger
+
+	Competition *entities.Competition
+	Distance    *entities.Distance
+	Heat        *entities.Heat
 }

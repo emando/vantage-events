@@ -7,13 +7,13 @@ import (
 	"fmt"
 	"time"
 
-	events "github.com/emando/vantage-events"
-	"github.com/emando/vantage-events/pkg/eventmodels"
+	"github.com/emando/vantage-events/pkg/events"
+	"github.com/emando/vantage-events/pkg/entities"
 	stan "github.com/nats-io/stan.go"
 	"go.uber.org/zap"
 )
 
-// Source is a NATS seeker for competition events.
+// Source is a NATS seeker for competition entities.
 type Source struct {
 	logger *zap.Logger
 	conn   *Conn
@@ -34,11 +34,11 @@ const (
 )
 
 // CompetitionActivations returns the competition activations.
-func (s *Source) CompetitionActivations(ctx context.Context, history time.Duration) (<-chan *events.Competition, error) {
-	ch := make(chan *events.Competition)
+func (s *Source) CompetitionActivations(ctx context.Context, history time.Duration) (<-chan *entities.Competition, error) {
+	ch := make(chan *entities.Competition)
 	cb := func(msg *stan.Msg) {
-		event := new(eventmodels.CompetitionActivated)
-		if err := eventmodels.Unmarshal(msg.Data, eventmodels.CompetitionActivatedType, event); err != nil {
+		event := new(events.CompetitionActivated)
+		if err := events.Unmarshal(msg.Data, events.CompetitionActivatedType, event); err != nil {
 			s.logger.Warn("failed to unmarshal data", zap.Error(err))
 			return
 		}
@@ -58,11 +58,11 @@ func (s *Source) CompetitionActivations(ctx context.Context, history time.Durati
 }
 
 // DistanceActivations returns the distance activations. The last activated distance is always returned.
-func (s *Source) DistanceActivations(ctx context.Context, competitionID string) (<-chan *events.Distance, error) {
-	ch := make(chan *events.Distance)
+func (s *Source) DistanceActivations(ctx context.Context, competitionID string) (<-chan *entities.Distance, error) {
+	ch := make(chan *entities.Distance)
 	cb := func(msg *stan.Msg) {
-		event := new(eventmodels.DistanceActivated)
-		if err := eventmodels.Unmarshal(msg.Data, eventmodels.DistanceActivatedType, event); err != nil {
+		event := new(events.DistanceActivated)
+		if err := events.Unmarshal(msg.Data, events.DistanceActivatedType, event); err != nil {
 			s.logger.Warn("failed to unmarshal data", zap.Error(err))
 			return
 		}
@@ -86,11 +86,11 @@ func (s *Source) DistanceActivations(ctx context.Context, competitionID string) 
 }
 
 // HeatActivations returns the heat activations. The last activated heat is always returned.
-func (s *Source) HeatActivations(ctx context.Context, competitionID, distanceID string) (<-chan *events.Heat, error) {
-	ch := make(chan *events.Heat)
+func (s *Source) HeatActivations(ctx context.Context, competitionID, distanceID string) (<-chan *entities.Heat, error) {
+	ch := make(chan *entities.Heat)
 	cb := func(msg *stan.Msg) {
-		event := new(eventmodels.HeatActivated)
-		if err := eventmodels.Unmarshal(msg.Data, eventmodels.HeatActivatedType, event); err != nil {
+		event := new(events.HeatActivated)
+		if err := events.Unmarshal(msg.Data, events.HeatActivatedType, event); err != nil {
 			s.logger.Warn("failed to unmarshal data", zap.Error(err))
 			return
 		}
