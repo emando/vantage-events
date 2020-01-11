@@ -1,5 +1,6 @@
 SHELL = bash
 GO = go
+DOCKER = docker
 GOBIN = $(PWD)/.bin
 export GOBIN
 
@@ -7,6 +8,7 @@ GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
 
 RELEASE_DIR = dist
+DOCKER_TAG_PREFIX = emando/vantage-events-
 
 .PHONY: deps.dev
 deps.dev:
@@ -45,7 +47,7 @@ git.nodiff:
 	fi
 
 $(RELEASE_DIR)/%:
-	@GOOS=$(GOOS) GOARCH=$(GOARCH) $(GO) build -o "$@" -v $(GO_FLAGS) $(LD_FLAGS) $(MAIN)
+	@GOOS=$(GOOS) GOARCH=$(GOARCH) $(GO) build -o "$@" $(GO_FLAGS) $(LD_FLAGS) $(MAIN)
 
 .PHONY: aggregator
 aggregator: MAIN=./cmd/aggregator/main.go
@@ -53,6 +55,13 @@ aggregator: $(RELEASE_DIR)/aggregator-$(GOOS)-$(GOARCH)
 
 .PHONY: build
 build: aggregator
+
+.PHONY: docker
+docker: GOOS=linux
+docker: GOARCH=amd64
+docker: MAIN=./cmd/aggregator/main.go
+docker: $(RELEASE_DIR)/aggregator-linux-amd64
+	@$(DOCKER) build -t $(addsuffix "aggregator", $(DOCKER_TAG_PREFIX)) -f build/aggregator.Dockerfile .
 
 .PHONY: clean
 clean:
