@@ -1,25 +1,61 @@
-RELEASE_DIR ?= release
-VENDOR_DIR ?= vendor
-
+SHELL = bash
 GO = go
+GOBIN = $(PWD)/.bin
+export GOBIN
+
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
 
-# Build the executable
-$(RELEASE_DIR)/%:
-	@GOOS=$(GOOS) GOARCH=$(GOARCH) $(GO) build -o "$@" -v $(GO_FLAGS) $(LD_FLAGS) $(MAIN)
+RELEASE_DIR = dist
 
-# aggregator
-aggregator: MAIN=./cmd/aggregator/main.go
-aggregator: $(RELEASE_DIR)/aggregator-$(GOOS)-$(GOARCH)
+.PHONY: deps.dev
+deps.dev:
+	@cat tools.go | grep _ | awk -F'"' '{print $$2}' | xargs -tI % $(GO) install %
 
-build: aggregator
+.PHONY: deps.tidy
+deps.tidy:
+	@$(GO) mod tidy
 
-clean:
-	@rm -rf $(RELEASE_DIR)
+.PHONY: fmt
+fmt:
+	@$(GOBIN)/gofumports -w .
 
-TEST_PKGS := $(shell go list ./... | grep -v /$(VENDOR_DIR))
+.PHONY: quality
+quality:
+	@$(GOBIN)/golint -set_exit_status ./... && \
+		$(GO) vet ./...
 
 .PHONY: test
 test:
-	@$(GO) test $(TEST_PKGS)
+	@$(GO) test ./...
+
+.PHONY: test.race
+test.race:
+	@$(GO) test -race -covermode=atomic ./...
+
+.PHONY: test.cover
+test.cover:
+	@$(GO) test -cover ./...
+
+.PHONY: git.nodiff
+git.nodiff:
+	@if [[ ! -z "`git diff`" ]]; then \
+		git diff; \
+		exit 1; \
+	fi
+
+$(RELEASE_DIR)/%:
+	@GOOS=$(GOOS) GOARCH=$(GOARCH) $(GO) build -o "$@" -v $(GO_FLAGS) $(LD_FLAGS) $(MAIN)
+
+.PHONY: aggregator
+aggregator: MAIN=./cmd/aggregator/main.go
+aggregator: $(RELEASE_DIR)/aggregator-$(GOOS)-$(GOARCH)
+
+.PHONY: build
+build: aggregator
+
+.PHONY: clean
+clean:
+	@rm -rf $(RELEASE_DIR)
+
+# vim: ft=make
