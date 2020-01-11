@@ -58,61 +58,69 @@ var startCmd = &cobra.Command{
 		if err != nil {
 			logger.Fatal("failed to get competitions", zap.Error(err))
 		}
-		go func() {
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case c := <-competitionCh:
-					logger := logger.With(zap.String("competition_name", c.Competition.Name))
-					logger.Info("competition activated")
-					go func() {
-						for {
-							select {
-							case <-ctx.Done():
-								return
-							case <-c.RawEvents:
-								logger.Debug("received competition event")
-							case d := <-c.DistanceEvents:
-								logger := logger.With(zap.String("distance_name", d.Distance.Name))
-								logger.Info("distance activated")
-								go func() {
-									for {
-										select {
-										case <-ctx.Done():
-											return
-										case <-d.RawEvents:
-											logger.Debug("received distance event")
-										case h := <-d.HeatEvents:
-											logger := logger.With(
-												zap.Int("heat_round", h.Heat.Key.Round),
-												zap.Int("heat_number", h.Heat.Key.Number),
-											)
-											logger.Info("heat activated")
-											go func() {
-												for {
-													select {
-													case <-ctx.Done():
-														return
-													case <-h.RawEvents:
-														logger.Debug("received heat event")
-													}
-												}
-											}()
-										}
-									}
-								}()
-							}
-						}
-					}()
-				}
-			}
-		}()
+		go followCompetitions(ctx, competitionCh)
 
 		sigCh := make(chan os.Signal, 1)
 		signal.Notify(sigCh, os.Interrupt, os.Kill, syscall.SIGTERM)
 		<-sigCh
 	},
+}
+
+func followCompetitions(ctx context.Context, ch <-chan *follower.CompetitionEvents) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case c := <-ch:
+			logger := logger.With(zap.String("competition_name", c.Competition.Name))
+			logger.Info("competition activated")
+			go followCompetition(ctx, c)
+		}
+	}
+}
+
+func followCompetition(ctx context.Context, competition *follower.CompetitionEvents) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-competition.RawEvents:
+			logger.Debug("received competition event")
+		case d := <-competition.DistanceEvents:
+			logger := logger.With(zap.String("distance_name", d.Distance.Name))
+			logger.Info("distance activated")
+			go followDistance(ctx, d)
+		}
+	}
+}
+
+func followDistance(ctx context.Context, distance *follower.DistanceEvents) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-distance.RawEvents:
+			logger.Debug("received distance event")
+		case h := <-distance.HeatEvents:
+			logger := logger.With(
+				zap.Int("heat_round", h.Heat.Key.Round),
+				zap.Int("heat_number", h.Heat.Key.Number),
+			)
+			logger.Info("heat activated")
+			go followHeat(ctx, h)
+		}
+	}
+}
+
+func followHeat(ctx context.Context, heat *follower.HeatEvents) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-heat.RawEvents:
+			logger.Debug("received heat event")
+		}
+	}
 }
 
 func init() {
