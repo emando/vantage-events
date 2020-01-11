@@ -37,8 +37,11 @@ func (f Follower) Run(ctx context.Context, history time.Duration) (<-chan *Compe
 				ctx, cancel := context.WithCancel(ctx)
 				competitions[competition.ID] = cancel
 				ev := &CompetitionEvents{
-					source:      f.Source,
-					logger:      f.Logger,
+					source: f.Source,
+					logger: f.Logger.With(
+						zap.String("competition_id", competition.ID),
+						zap.String("competition_name", competition.Name),
+					),
 					Competition: competition,
 					Update:      make(chan *entities.Competition),
 					Distance:    make(chan *DistanceEvents),
@@ -76,8 +79,11 @@ func (c *CompetitionEvents) follow(ctx context.Context) error {
 			return ctx.Err()
 		case distance := <-activations:
 			ev := &DistanceEvents{
-				source:      c.source,
-				logger:      c.logger,
+				source: c.source,
+				logger: c.logger.With(
+					zap.String("distance_id", distance.ID),
+					zap.String("distance_name", distance.Name),
+				),
 				Competition: c.Competition,
 				Distance:    distance,
 				Heats:       make(chan *HeatEvents),
@@ -113,8 +119,11 @@ func (d *DistanceEvents) follow(ctx context.Context) error {
 			return ctx.Err()
 		case heat := <-activations:
 			ev := &HeatEvents{
-				source:      d.source,
-				logger:      d.logger,
+				source: d.source,
+				logger: d.logger.With(
+					zap.Int("heat_round", heat.Key.Round),
+					zap.Int("heat_number", heat.Key.Number),
+				),
 				Competition: d.Competition,
 				Distance:    d.Distance,
 				Heat:        heat,
