@@ -20,4 +20,5 @@ const (
 // HeatActivated is the event data of a Vantage competition activation.
 type HeatActivated struct {
 	Heat
+	Raw []byte `json:"-"`
 }

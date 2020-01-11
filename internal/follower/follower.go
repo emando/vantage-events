@@ -30,24 +30,24 @@ func (f Follower) Run(ctx context.Context, history time.Duration) (<-chan *Compe
 		for {
 			select {
 			case <-ctx.Done():
-				close(ch)
 				return
-			case competition := <-activations:
-				if cancel, ok := competitions[competition.ID]; ok {
+			case activation := <-activations:
+				if cancel, ok := competitions[activation.CompetitionID]; ok {
 					cancel()
 				}
 				ctx, cancel := context.WithCancel(ctx)
 				defer cancel()
-				competitions[competition.ID] = cancel
+				competitions[activation.CompetitionID] = cancel
 				ev := &CompetitionEvents{
 					source: f.Source,
 					logger: f.Logger.With(
-						zap.String("competition_id", competition.ID),
-						zap.String("competition_name", competition.Name),
+						zap.String("competition_id", activation.CompetitionID),
+						zap.String("competition_name", activation.Value.Name),
 					),
-					Competition: competition,
-					Update:      make(chan *entities.Competition),
-					Distance:    make(chan *DistanceEvents),
+					Competition:    &activation.Value,
+					DistanceEvents: make(chan *DistanceEvents),
+					RawActivation:  activation.Raw,
+					RawEvents:      make(chan []byte),
 				}
 				ch <- ev
 				go func() {
@@ -66,9 +66,11 @@ type CompetitionEvents struct {
 	source events.Source
 	logger *zap.Logger
 
-	Competition *entities.Competition
-	Update      chan *entities.Competition
-	Distance    chan *DistanceEvents
+	Competition    *entities.Competition
+	DistanceEvents chan *DistanceEvents
+
+	RawActivation []byte
+	RawEvents     chan []byte
 }
 
 func (c *CompetitionEvents) follow(ctx context.Context) error {
@@ -79,20 +81,21 @@ func (c *CompetitionEvents) follow(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			close(c.Distance)
 			return ctx.Err()
-		case distance := <-activations:
+		case activation := <-activations:
 			ev := &DistanceEvents{
 				source: c.source,
 				logger: c.logger.With(
-					zap.String("distance_id", distance.ID),
-					zap.String("distance_name", distance.Name),
+					zap.String("distance_id", activation.DistanceID),
+					zap.String("distance_name", activation.Value.Name),
 				),
-				Competition: c.Competition,
-				Distance:    distance,
-				Heats:       make(chan *HeatEvents),
+				Competition:   c.Competition,
+				Distance:      &activation.Value,
+				HeatEvents:    make(chan *HeatEvents),
+				RawActivation: activation.Raw,
+				RawEvents:     make(chan []byte),
 			}
-			c.Distance <- ev
+			c.DistanceEvents <- ev
 			go func() {
 				if err := ev.follow(ctx); err != nil && err != context.Canceled {
 					c.logger.Error("failed to follow distance", zap.Error(err))
@@ -109,7 +112,10 @@ type DistanceEvents struct {
 
 	Competition *entities.Competition
 	Distance    *entities.Distance
-	Heats       chan *HeatEvents
+	HeatEvents  chan *HeatEvents
+
+	RawActivation []byte
+	RawEvents     chan []byte
 }
 
 func (d *DistanceEvents) follow(ctx context.Context) error {
@@ -128,20 +134,21 @@ func (d *DistanceEvents) follow(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			close(d.Heats)
 			return ctx.Err()
-		case heat := <-activations:
+		case activation := <-activations:
 			ev := &HeatEvents{
 				source: d.source,
 				logger: d.logger.With(
-					zap.Int("heat_round", heat.Key.Round),
-					zap.Int("heat_number", heat.Key.Number),
+					zap.Int("heat_round", activation.Key.Round),
+					zap.Int("heat_number", activation.Key.Number),
 				),
-				Competition: d.Competition,
-				Distance:    d.Distance,
-				Heat:        heat,
+				Competition:   d.Competition,
+				Distance:      d.Distance,
+				Heat:          &activation.Heat.Heat,
+				RawActivation: activation.Raw,
+				RawEvents:     make(chan []byte),
 			}
-			d.Heats <- ev
+			d.HeatEvents <- ev
 		}
 	}
 }
@@ -154,4 +161,7 @@ type HeatEvents struct {
 	Competition *entities.Competition
 	Distance    *entities.Distance
 	Heat        *entities.Heat
+
+	RawActivation []byte
+	RawEvents     chan []byte
 }

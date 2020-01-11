@@ -19,4 +19,5 @@ const (
 type CompetitionActivated struct {
 	Competition
 	Value entities.Competition `json:"competition"`
+	Raw   []byte               `json:"-"`
 }

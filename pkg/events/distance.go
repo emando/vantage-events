@@ -21,4 +21,5 @@ const (
 type DistanceActivated struct {
 	Distance
 	Value entities.Distance `json:"distance"`
+	Raw   []byte            `json:"-"`
 }

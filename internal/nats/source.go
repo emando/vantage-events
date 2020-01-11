@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/emando/vantage-events/pkg/entities"
 	"github.com/emando/vantage-events/pkg/events"
 	stan "github.com/nats-io/stan.go"
 	"go.uber.org/zap"
@@ -34,18 +33,19 @@ const (
 )
 
 // CompetitionActivations returns the competition activations.
-func (s *Source) CompetitionActivations(ctx context.Context, history time.Duration) (<-chan *entities.Competition, error) {
-	ch := make(chan *entities.Competition)
+func (s *Source) CompetitionActivations(ctx context.Context, history time.Duration) (<-chan *events.CompetitionActivated, error) {
+	ch := make(chan *events.CompetitionActivated)
 	cb := func(msg *stan.Msg) {
 		event := new(events.CompetitionActivated)
 		if err := events.Unmarshal(msg.Data, events.CompetitionActivatedType, event); err != nil {
 			s.logger.Warn("failed to unmarshal data", zap.Error(err))
 			return
 		}
+		event.Raw = append(msg.Data[:0:0], msg.Data...)
 		s.logger.Debug("received competition activation",
 			zap.String("competition_id", event.CompetitionID),
 		)
-		ch <- &event.Value
+		ch <- event
 	}
 	sub, err := s.conn.stan.Subscribe(competitionActivations, cb, stan.StartAtTimeDelta(history))
 	if err != nil {
@@ -60,21 +60,22 @@ func (s *Source) CompetitionActivations(ctx context.Context, history time.Durati
 }
 
 // DistanceActivations returns the distance activations. The last activated distance is always returned.
-func (s *Source) DistanceActivations(ctx context.Context, competitionID string) (<-chan *entities.Distance, error) {
+func (s *Source) DistanceActivations(ctx context.Context, competitionID string) (<-chan *events.DistanceActivated, error) {
 	logger := s.logger.With(
 		zap.String("competition_id", competitionID),
 	)
-	ch := make(chan *entities.Distance)
+	ch := make(chan *events.DistanceActivated)
 	cb := func(msg *stan.Msg) {
 		event := new(events.DistanceActivated)
 		if err := events.Unmarshal(msg.Data, events.DistanceActivatedType, event); err != nil {
 			logger.Warn("failed to unmarshal data", zap.Error(err))
 			return
 		}
+		event.Raw = append(msg.Data[:0:0], msg.Data...)
 		logger.Debug("received distance activation",
 			zap.String("distance_id", event.DistanceID),
 		)
-		ch <- &event.Value
+		ch <- event
 	}
 	subject := fmt.Sprintf(distanceActivations, competitionID)
 	sub, err := s.conn.stan.Subscribe(subject, cb, stan.StartWithLastReceived())
@@ -90,23 +91,24 @@ func (s *Source) DistanceActivations(ctx context.Context, competitionID string) 
 }
 
 // HeatActivations returns the heat activations. The last activated heat is always returned.
-func (s *Source) HeatActivations(ctx context.Context, competitionID, distanceID string, groups ...int) (<-chan *entities.Heat, error) {
+func (s *Source) HeatActivations(ctx context.Context, competitionID, distanceID string, groups ...int) (<-chan *events.HeatActivated, error) {
 	logger := s.logger.With(
 		zap.String("competition_id", competitionID),
 		zap.String("distance_id", distanceID),
 	)
-	ch := make(chan *entities.Heat)
+	ch := make(chan *events.HeatActivated)
 	cb := func(msg *stan.Msg) {
 		event := new(events.HeatActivated)
 		if err := events.Unmarshal(msg.Data, events.HeatActivatedType, event); err != nil {
 			logger.Warn("failed to unmarshal data", zap.Error(err))
 			return
 		}
+		event.Raw = append(msg.Data[:0:0], msg.Data...)
 		logger.Debug("received heat activation",
 			zap.Int("heat_round", event.Key.Round),
 			zap.Int("heat_number", event.Key.Number),
 		)
-		ch <- &event.Heat.Heat
+		ch <- event
 	}
 	for _, group := range groups {
 		subject := fmt.Sprintf(heatActivations, competitionID, distanceID, group)
