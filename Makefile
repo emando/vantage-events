@@ -58,4 +58,9 @@ build: aggregator
 clean:
 	@rm -rf $(RELEASE_DIR)
 
+.PHONY: certs.dev
+certs.dev:
+	@mkdir -p .dev
+	@CAROOT=.dev $(GOBIN)/mkcert -cert-file .dev/cert.pem -key-file .dev/key.pem localhost
+
 # vim: ft=make
