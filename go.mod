@@ -1,8 +1,11 @@
 module github.com/emando/vantage-events
 
 require (
+	github.com/FiloSottile/mkcert v1.4.1 // indirect
 	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/golang/protobuf v1.3.2 // indirect
+	github.com/gorilla/mux v1.7.3
+	github.com/gorilla/websocket v1.4.1
 	github.com/nats-io/jwt v0.3.2 // indirect
 	github.com/nats-io/nats-streaming-server v0.16.2 // indirect
 	github.com/nats-io/nats.go v1.9.1
