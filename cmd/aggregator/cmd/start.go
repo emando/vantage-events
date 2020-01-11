@@ -54,7 +54,7 @@ var startCmd = &cobra.Command{
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		competitionCh, err := follower.Run(ctx, viper.GetDuration("history"))
+		competitionCh, err := follower.Run(ctx, viper.GetDuration("history"), viper.GetStringSlice("filter")...)
 		if err != nil {
 			logger.Fatal("failed to get competitions", zap.Error(err))
 		}
@@ -118,5 +118,6 @@ var startCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(startCmd)
 	startCmd.Flags().Duration("history", 24*time.Hour, "time to seek competition activations")
+	startCmd.Flags().StringSlice("filter", nil, "filter competitions by ID")
 	viper.BindPFlags(startCmd.Flags())
 }

@@ -19,7 +19,7 @@ type Follower struct {
 }
 
 // Run starts the follower.
-func (f Follower) Run(ctx context.Context, history time.Duration) (<-chan *CompetitionEvents, error) {
+func (f Follower) Run(ctx context.Context, history time.Duration, ids ...string) (<-chan *CompetitionEvents, error) {
 	activations, err := f.Source.CompetitionActivations(ctx, history)
 	if err != nil {
 		return nil, err
@@ -32,6 +32,23 @@ func (f Follower) Run(ctx context.Context, history time.Duration) (<-chan *Compe
 			case <-ctx.Done():
 				return
 			case activation := <-activations:
+				logger := f.Logger.With(
+					zap.String("competition_id", activation.CompetitionID),
+					zap.String("competition_name", activation.Value.Name),
+				)
+				if len(ids) > 0 {
+					var found bool
+					for _, id := range ids {
+						if strings.EqualFold(id, activation.CompetitionID) {
+							found = true
+							break
+						}
+					}
+					if !found {
+						logger.Debug("ignoring competition")
+						continue
+					}
+				}
 				if cancel, ok := competitions[activation.CompetitionID]; ok {
 					cancel()
 				}
