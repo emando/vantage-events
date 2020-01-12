@@ -25,7 +25,9 @@ type Conn struct {
 
 // Connect connects to NATS Streaming Server.
 func Connect(opts Options) (*Conn, error) {
-	var options []nats.Option
+	options := []nats.Option{
+		nats.MaxReconnects(-1),
+	}
 	if opts.Username != "" {
 		options = append(options, nats.UserInfo(opts.Username, opts.Password))
 	}
