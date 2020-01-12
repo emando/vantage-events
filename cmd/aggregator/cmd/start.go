@@ -54,7 +54,7 @@ var startCmd = &cobra.Command{
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		hub := hub.New(logger, source,
+		hub := hub.NewServer(logger, source,
 			viper.GetString("hub-address"),
 			viper.GetString("cert-file"),
 			viper.GetString("key-file"),

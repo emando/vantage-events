@@ -25,8 +25,8 @@ type Hub struct {
 	keyFile string
 }
 
-// New instantiates a new Hub.
-func New(logger *zap.Logger, source events.Source, address, certFile, keyFile string) *Hub {
+// NewServer instantiates a new Hub.
+func NewServer(logger *zap.Logger, source events.Source, address, certFile, keyFile string) *Hub {
 	return &Hub{
 		logger:   logger,
 		source:   source,
@@ -36,10 +36,56 @@ func New(logger *zap.Logger, source events.Source, address, certFile, keyFile st
 	}
 }
 
+const (
+	writeWait  = 10 * time.Second
+	pongWait   = 60 * time.Second
+	pingPeriod = pongWait * 9 / 10
+)
+
+func writePings(ctx context.Context, logger *zap.Logger, ws *websocket.Conn) {
+	ticker := time.NewTicker(pingPeriod)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			logger.Debug("writing ping")
+			if err := ws.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(writeWait)); err != nil {
+				logger.Debug("write ping failed", zap.Error(err))
+				ws.Close()
+				return
+			}
+		}
+	}
+}
+
+func readPongs(ctx context.Context, logger *zap.Logger, ws *websocket.Conn) error {
+	ws.SetReadDeadline(time.Now().Add(pongWait))
+	ws.SetPongHandler(func(string) error {
+		ws.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+		_, _, err := ws.ReadMessage()
+		if err != nil {
+			logger.Debug("read failed", zap.Error(err))
+			return err
+		}
+	}
+}
+
 func (h *Hub) getCompetitions(w http.ResponseWriter, r *http.Request) {
 	// TODO: Authenticate via Vantage API.
 
-	ctx := r.Context()
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+
 	logger := h.logger.With(zap.String("remote_address", r.RemoteAddr))
 	c, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -47,6 +93,8 @@ func (h *Hub) getCompetitions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer c.Close()
+
+	go writePings(ctx, logger, c)
 
 	ch, err := h.source.CompetitionActivations(ctx, 24*time.Hour)
 	if err != nil {
@@ -54,28 +102,37 @@ func (h *Hub) getCompetitions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sent := make(map[string]struct{})
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case activation := <-ch:
-			if _, ok := sent[activation.CompetitionID]; ok {
-				continue
-			}
-			if err := c.WriteMessage(websocket.TextMessage, activation.Raw); err != nil {
-				logger.Debug("failed to write message", zap.Error(err))
+	go func() {
+		sent := make(map[string]struct{})
+		for {
+			select {
+			case <-ctx.Done():
 				return
+			case activation := <-ch:
+				if _, ok := sent[activation.CompetitionID]; ok {
+					continue
+				}
+				if err := c.WriteMessage(websocket.TextMessage, activation.Raw); err != nil {
+					logger.Debug("failed to write message", zap.Error(err))
+					return
+				}
+				sent[activation.CompetitionID] = struct{}{}
 			}
-			sent[activation.CompetitionID] = struct{}{}
 		}
+	}()
+
+	if err := readPongs(ctx, logger, c); err != nil {
+		cancel()
+		return
 	}
 }
 
 func (h *Hub) getCompetition(w http.ResponseWriter, r *http.Request) {
 	// TODO: Authenticate via Vantage API.
 
-	ctx := r.Context()
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+
 	logger := h.logger.With(zap.String("remote_address", r.RemoteAddr))
 	c, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -83,6 +140,8 @@ func (h *Hub) getCompetition(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer c.Close()
+
+	go writePings(ctx, logger, c)
 
 	follower := &follower.Follower{
 		Logger: logger,
@@ -97,16 +156,23 @@ func (h *Hub) getCompetition(w http.ResponseWriter, r *http.Request) {
 	outCh := make(chan []byte)
 	go followRawEvents(ctx, eventsCh, outCh)
 
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case buf := <-outCh:
-			if err := c.WriteMessage(websocket.TextMessage, buf); err != nil {
-				logger.Debug("failed to write message", zap.Error(err))
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
 				return
+			case buf := <-outCh:
+				if err := c.WriteMessage(websocket.TextMessage, buf); err != nil {
+					logger.Debug("failed to write message", zap.Error(err))
+					return
+				}
 			}
 		}
+	}()
+
+	if err := readPongs(ctx, logger, c); err != nil {
+		cancel()
+		return
 	}
 }
 
