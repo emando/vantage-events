@@ -3,6 +3,8 @@
 package events
 
 import (
+	"time"
+
 	"github.com/emando/vantage-events/pkg/entities"
 )
 
@@ -22,7 +24,7 @@ const (
 // DistanceActivated is the event data of a Vantage competition distance activation.
 type DistanceActivated struct {
 	Distance
-	Value    entities.Distance `json:"distance"`
-	Sequence uint64            `json:"-"`
-	Raw      []byte            `json:"-"`
+	Value entities.Distance `json:"distance"`
+	Time  time.Time         `json:"-"`
+	Raw   []byte            `json:"-"`
 }

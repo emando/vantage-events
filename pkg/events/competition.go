@@ -2,7 +2,11 @@
 
 package events
 
-import "github.com/emando/vantage-events/pkg/entities"
+import (
+	"time"
+
+	"github.com/emando/vantage-events/pkg/entities"
+)
 
 // Competition is a Vantage competition event.
 type Competition struct {
@@ -18,7 +22,7 @@ const (
 // CompetitionActivated is the event data of a Vantage competition activation.
 type CompetitionActivated struct {
 	Competition
-	Value    entities.Competition `json:"competition"`
-	Sequence uint64               `json:"-"`
-	Raw      []byte               `json:"-"`
+	Value entities.Competition `json:"competition"`
+	Time  time.Time            `json:"-"`
+	Raw   []byte               `json:"-"`
 }

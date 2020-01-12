@@ -41,8 +41,8 @@ func (s *Source) CompetitionActivations(ctx context.Context, history time.Durati
 	ch := make(chan *events.CompetitionActivated)
 	cb := func(msg *stan.Msg) {
 		event := &events.CompetitionActivated{
-			Sequence: msg.Sequence,
-			Raw:      append(msg.Data[:0:0], msg.Data...),
+			Time: time.Unix(0, msg.Timestamp),
+			Raw:  append(msg.Data[:0:0], msg.Data...),
 		}
 		if err := events.Unmarshal(msg.Data, events.CompetitionActivatedType, event); err != nil {
 			s.logger.Warn("failed to unmarshal data", zap.Error(err))
@@ -81,7 +81,7 @@ func (s *Source) CompetitionEvents(ctx context.Context, since *events.Competitio
 		ch <- event
 	}
 	subject := fmt.Sprintf(competitionEvents, since.CompetitionID)
-	sub, err := s.conn.stan.Subscribe(subject, cb, stan.StartAtSequence(since.Sequence))
+	sub, err := s.conn.stan.Subscribe(subject, cb, stan.StartAtTime(since.Time))
 	if err != nil {
 		return nil, err
 	}
@@ -101,8 +101,8 @@ func (s *Source) DistanceActivations(ctx context.Context, competitionID string) 
 	ch := make(chan *events.DistanceActivated)
 	cb := func(msg *stan.Msg) {
 		event := &events.DistanceActivated{
-			Sequence: msg.Sequence,
-			Raw:      append(msg.Data[:0:0], msg.Data...),
+			Time: time.Unix(0, msg.Timestamp),
+			Raw:  append(msg.Data[:0:0], msg.Data...),
 		}
 		if err := events.Unmarshal(msg.Data, events.DistanceActivatedType, event); err != nil {
 			logger.Warn("failed to unmarshal data", zap.Error(err))
@@ -145,7 +145,7 @@ func (s *Source) DistanceEvents(ctx context.Context, since *events.DistanceActiv
 		ch <- event
 	}
 	subject := fmt.Sprintf(distanceEvents, since.CompetitionID, since.DistanceID)
-	sub, err := s.conn.stan.Subscribe(subject, cb, stan.StartAtSequence(since.Sequence))
+	sub, err := s.conn.stan.Subscribe(subject, cb, stan.StartAtTime(since.Time))
 	if err != nil {
 		return nil, err
 	}
@@ -166,8 +166,8 @@ func (s *Source) HeatActivations(ctx context.Context, competitionID, distanceID 
 	ch := make(chan *events.HeatActivated)
 	cb := func(msg *stan.Msg) {
 		event := &events.HeatActivated{
-			Sequence: msg.Sequence,
-			Raw:      append(msg.Data[:0:0], msg.Data...),
+			Time: time.Unix(0, msg.Timestamp),
+			Raw:  append(msg.Data[:0:0], msg.Data...),
 		}
 		if err := events.Unmarshal(msg.Data, events.HeatActivatedType, event); err != nil {
 			logger.Warn("failed to unmarshal data", zap.Error(err))
@@ -216,7 +216,7 @@ func (s *Source) HeatEvents(ctx context.Context, since *events.HeatActivated) (<
 		ch <- event
 	}
 	subject := fmt.Sprintf(heatEvents, since.CompetitionID, since.DistanceID, since.Key.Round, since.Key.Number)
-	sub, err := s.conn.stan.Subscribe(subject, cb, stan.StartAtSequence(since.Sequence))
+	sub, err := s.conn.stan.Subscribe(subject, cb, stan.StartAtTime(since.Time))
 	if err != nil {
 		return nil, err
 	}

@@ -3,6 +3,8 @@
 package events
 
 import (
+	"time"
+
 	"github.com/emando/vantage-events/pkg/entities"
 )
 
@@ -22,6 +24,6 @@ const (
 // HeatActivated is the event data of a Vantage competition activation.
 type HeatActivated struct {
 	Heat
-	Sequence uint64 `json:"-"`
-	Raw      []byte `json:"-"`
+	Time time.Time `json:"-"`
+	Raw  []byte    `json:"-"`
 }
