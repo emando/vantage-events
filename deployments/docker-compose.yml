@@ -1,0 +1,47 @@
+version: "3"
+
+services:
+  nats:
+    image: nats:linux
+    command: "-c /gnatsd.conf"
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - "./gnatsd.conf:/gnatsd.conf"
+      - "./certs:/certs"
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "100M"
+
+  nats-streaming:
+    image: johanstokking/nats-streaming:linux # https://github.com/nats-io/nats-streaming-docker/pull/18
+    volumes:
+      - "./config/nats-streaming.conf:/nats-streaming.conf"
+      - "./data:/data"
+    command: "-c /nats-streaming.conf --user streaming --pass SECRET"
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "100M"
+
+  aggregator:
+    image: emando/vantage-events-aggregator
+    ports:
+      - "443:443"
+    volumes:
+      - "./certs:/certs"
+    environment:
+      - "VANTAGE_DEBUG=true"
+      - "VANTAGE_NATS_USERNAME=aggregator"
+      - "VANTAGE_NATS_PASSWORD=SECRET"
+      - "VANTAGE_CERT_FILE=/certs/cert.pem"
+      - "VANTAGE_KEY_FILE=/certs/key.pem"
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "100M"
