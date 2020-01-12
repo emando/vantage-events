@@ -1,4 +1,4 @@
-// Copyright © 2019 Emando B.V.
+// Copyright © 2020 Emando B.V.
 
 package cmd
 
@@ -21,8 +21,8 @@ var (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "aggregator",
-	Short: "Event Aggregator for Vantage event streaming.",
+	Use:   "eventrecorder",
+	Short: "Event Recorder for Vantage event streaming.",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		var err error
 		if viper.GetBool("debug") {
@@ -51,23 +51,17 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.aggregator.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.eventrecorder.yaml)")
 	rootCmd.PersistentFlags().BoolP("debug", "d", false, "enable debugging")
-	rootCmd.PersistentFlags().String("driver", "nats", "driver (nats)")
-
-	rootCmd.PersistentFlags().String("nats-url", "nats://events.emandovantage.com:4222", "NATS Streaming Server URL")
-	rootCmd.PersistentFlags().String("nats-username", "", "NATS username")
-	rootCmd.PersistentFlags().String("nats-password", "", "NATS password")
-	rootCmd.PersistentFlags().Bool("nats-tls", true, "use TLS for NATS")
-	rootCmd.PersistentFlags().String("nats-cluster-id", "vantage", "NATS cluster ID")
-	rootCmd.PersistentFlags().String("nats-client-id", "aggregator", "NATS client ID")
+	rootCmd.PersistentFlags().String("file", "log.json", "file")
+	rootCmd.PersistentFlags().String("host", "events.emandovantage.com", "Vantage Events Server host")
 
 	viper.BindPFlags(rootCmd.PersistentFlags())
 }
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
-	viper.SetConfigName(".aggregator")
+	viper.SetConfigName(".eventrecorder")
 	viper.AddConfigPath("$HOME")
 	viper.SetEnvPrefix("vantage")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
