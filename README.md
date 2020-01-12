@@ -31,7 +31,7 @@ The Event Recorder is a utility that allows recording and replaying events for d
 Make sure you have [Go](https://golang.org/doc/install) installed in your environment.
 
 ```bash
-$ go install github.com/emando/vantage-events/cmd/eventrecorder
+$ go get github.com/emando/vantage-events/cmd/eventrecorder
 ```
 
 ### Record Events
