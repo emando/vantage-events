@@ -79,6 +79,10 @@ This stream has the same format as the stream produced by the Event Aggregator.
 $ eventrecorder replay --file test.json --speed 4
 ```
 
+### Example Events
+
+You can find example events in the `examples` folder. These are recordings from actual events that can be used during development.
+
 ## Legal
 
 Copyright © 2020 Emando B.V.
