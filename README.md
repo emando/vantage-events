@@ -36,15 +36,23 @@ $ go get github.com/emando/vantage-events/cmd/eventrecorder
 
 ### Record Events
 
-To record events:
+To record events of competition activations:
 
 ```bash
-$ eventrecorder record --file test.json
+$ eventrecorder record --file activations.json
 ```
 
 >Pass `--help` for additional options.
 
-This stores the files in `test.json`.
+This stores activations in `activations.json`.
+
+To record events of a competition:
+
+```bash
+$ eventrecorder record --file competition.json --competition 52d432dc-d6b8-4045-8a4c-e5e5bdfc8b1e
+```
+
+This stores the competition events in `competition.json`.
 
 ### Replay Events
 
