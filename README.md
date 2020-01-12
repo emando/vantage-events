@@ -4,6 +4,33 @@ Vantage Events Server distributes events from Vantage to clients via websockets.
 
 The live state is sent to each new subscriber when the websocket starts, before real-time events are broadcast. This allows clients to restore the live state by opening a websocket connection.
 
+## Concept
+
+Vantage embraces the concept of event sourcing: state is communicated in a series of (change) events that are published. Subscribers are responsible for restoring and maintaining state by observing events. Vantage supports a recovering mechanism for clients by sending the relevant events when they subscribe, so that they can restore the current state at any point in time.
+
+The key events are sent in the following order:
+
+- `CompetitionActivatedEvent`: activation of a competition
+   - `DistanceActivatedEvent`: activation of a distance
+      - `HeatActivatedEvent`: activation of a heat (there can be multiple concurrent)
+         - `HeatClearedEvent`: clear of a heat (i.e. clock reset)
+         - `HeatStartedEvent`: start of a heat
+         - `RaceLapPassingAddedEvent`: new passing (transponder loop or lap)
+         - `LastRaceSpeedChangedEvent`: speed changed
+         - `RaceLapAddedEvent`: new lap
+         - `LastPresentedRaceLapChangedEvent`: presented lap changed
+         - `HeatDeactivatedEvent`: deactivation of a heat
+      - `HeatCommittedEvent`: commit of a heat with result and time (heat doesn't have to be active)
+      - `DistanceDeactivatedEvent`: deactivation of a distance
+
+All events are JSON encoded. The type of the event can be found in `typeName`.
+
+### Heats and Races
+
+In long track speed skating, each pair is a heat. All heats are in round 1.
+
+For example, distance 9 pair 5 has heat round 1 and number 5. In pair 5, there are two races with lane inner (0) and outer (1).
+
 ## Event Aggregator
 
 The Event Aggregator component runs on the server. For each websocket client, this component subscribes to NATS Streaming Server and follows competitions and live events within a competition.
@@ -78,6 +105,10 @@ This stream has the same format as the stream produced by the Event Aggregator.
 ```bash
 $ eventrecorder replay --file test.json --speed 4
 ```
+
+### Example Events
+
+You can find example events in the `examples` folder. These are recordings from actual events that can be used during development.
 
 ## Legal
 
