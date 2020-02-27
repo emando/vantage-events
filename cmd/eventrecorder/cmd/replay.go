@@ -30,7 +30,10 @@ var replayCmd = &cobra.Command{
 	},
 }
 
-var upgrader = websocket.Upgrader{}
+// for frontend dev purposes connections from a different source must be (temporarily) allowed
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool { return true },
+}
 
 func handle(w http.ResponseWriter, r *http.Request) {
 	logger := logger.With(zap.String("remote_address", r.RemoteAddr))
